@@ -185,8 +185,6 @@ class CarTable extends DAOAbstract implements TableInterface
         string &$value,
         bool $range = false
     ) {
-        $value = \trim($value);
-
         if ($range) {
             $rangedData = \explode(',', $value);
 
@@ -204,10 +202,14 @@ class CarTable extends DAOAbstract implements TableInterface
         }
 
         foreach ($value as &$data) {
-            if (!\is_numeric($data)
-                || $data != \intval($data)
-            ) {
-                self::$filterErrors[] = "'{$key}' must be integer";
+            $data = \strtolower(\trim($data));
+
+            if ($data === 'inf') {
+                continue;
+            }
+
+            if (!self::isInt($data)) {
+                self::$filterErrors[] = "'{$key}' must be float";
 
                 return;
             }
@@ -217,12 +219,8 @@ class CarTable extends DAOAbstract implements TableInterface
             $value[1] = $value[0];
         }
 
-        if ($value[1] < $value[0]) {
-            $value[2] = $value[1];
-            $value[1] = $value[0];
-            $value[0] = $value[2];
-
-            unset($value[2]);
+        if (!self::normalizeRangeValue($value)) {
+            self::$filterErrors[] = "'{$key}' has wrong range";
         }
     }
 
@@ -237,8 +235,6 @@ class CarTable extends DAOAbstract implements TableInterface
         string &$value,
         bool $range = false
     ) {
-        $value = \trim($value);
-
         if ($range) {
             $rangedData = \explode(',', $value);
 
@@ -256,10 +252,13 @@ class CarTable extends DAOAbstract implements TableInterface
         }
 
         foreach ($value as &$data) {
-            if (!\is_numeric($data)
-                || $data != \floatval($data)
-                || $data != round($data, 2)
-            ) {
+            $data = \strtolower(\trim($data));
+
+            if ($data === 'inf') {
+                continue;
+            }
+
+            if (!self::isFloat($data)) {
                 self::$filterErrors[] = "'{$key}' must be float";
 
                 return;
@@ -270,13 +269,80 @@ class CarTable extends DAOAbstract implements TableInterface
             $value[1] = $value[0];
         }
 
-        if ($value[1] < $value[0]) {
+        if (!self::normalizeRangeValue($value)) {
+            self::$filterErrors[] = "'{$key}' has wrong range";
+        }
+    }
+
+    /**
+     * Проверяет, что значение переменной является числом типа int
+     *
+     * @param mixed $value
+     *
+     * @return bool Возвращает true, если значение переменной число типа int,
+     *              иначе возвращает false
+     */
+    private static function isInt($value)
+    {
+        if (!\is_numeric($value)
+            || $value != \intval($value)
+            || $value < 0
+        ) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Проверяет, что значение переменной является числом типа float
+     *
+     * @param mixed $value
+     *
+     * @return bool Возвращает true, если значение переменной число типа float,
+     *              иначе возвращает false
+     */
+    private static function isFloat($value)
+    {
+        if (!\is_numeric($value)
+            || $value != \floatval($value)
+            || $value != round($value, 2)
+            || $value < 0
+        ) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Нормализует данные типа "диапазон"
+     *
+     * @param array $value
+     *
+     * @return bool Если данные успешно нормализованы, то возвращает true,
+     *              иначе - false
+     */
+    private static function normalizeRangeValue(array &$value)
+    {
+        if ($value[0] === 'inf'
+            && $value[1] === 'inf'
+        ) {
+            return false;
+        } elseif ($value[0] === 'inf'
+            || (
+                $value[1] !== 'inf'
+                && $value[1] < $value[0]
+            )
+        ) {
             $value[2] = $value[1];
             $value[1] = $value[0];
             $value[0] = $value[2];
 
             unset($value[2]);
         }
+
+        return true;
     }
 
     /**
@@ -315,15 +381,25 @@ class CarTable extends DAOAbstract implements TableInterface
                 case 'power':
                 case 'price':
                 case 'km':
-                    $arWhere['sql'][] = "`{$key}` BETWEEN :{$key}0 AND :{$key}1";
-                    $arWhere['stmt'][":{$key}0"] = $value[0];
-                    $arWhere['stmt'][":{$key}1"] = $value[1];
+                    if ($value[1] === 'inf') {
+                        $arWhere['sql'][] = "`{$key}` >= :{$key}";
+                        $arWhere['stmt'][":{$key}"] = $value[0];
+                    } else {
+                        $arWhere['sql'][] = "`{$key}` BETWEEN :{$key}0 AND :{$key}1";
+                        $arWhere['stmt'][":{$key}0"] = $value[0];
+                        $arWhere['stmt'][":{$key}1"] = $value[1];
+                    }
 
                     break;
                 case 'engineCapacity':
-                    $arWhere['sql'][] = "`engine_capacity` BETWEEN :engine_capacity0 AND :engine_capacity1";
-                    $arWhere['stmt'][":engine_capacity0"] = $value[0];
-                    $arWhere['stmt'][":engine_capacity1"] = $value[1];
+                    if ($value[1] === 'inf') {
+                        $arWhere['sql'][] = "`engine_capacity` >= :{$key}";
+                        $arWhere['stmt'][":{$key}"] = $value[0];
+                    } else {
+                        $arWhere['sql'][] = "`engine_capacity` BETWEEN :engine_capacity0 AND :engine_capacity1";
+                        $arWhere['stmt'][":engine_capacity0"] = $value[0];
+                        $arWhere['stmt'][":engine_capacity1"] = $value[1];
+                    }
 
                     break;
                 case 'id':
