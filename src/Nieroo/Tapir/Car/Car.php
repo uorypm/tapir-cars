@@ -43,9 +43,9 @@ class Car
     private $km = 0.0;
 
     /**
-     * @var Owner[] Владельцы
+     * @var int Владельцы
      */
-    private $owners = [];
+    private $owners = 0;
 
     /**
      * @var int Мощность (в л.с.)
