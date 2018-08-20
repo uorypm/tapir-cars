@@ -16,7 +16,10 @@ use RuntimeException;
  */
 class CarTable extends DAOAbstract implements TableInterface
 {
-    private static $tableName = 'cars';
+    /**
+     * Имя таблицы в БД
+     */
+    private const TABLE_NAME = 'cars';
 
     /**
      * @var string|null Последняя ошибка
@@ -37,7 +40,7 @@ class CarTable extends DAOAbstract implements TableInterface
      */
     public function add(Car $car)
     {
-        $tableName = self::$tableName;
+        $tableName = self::TABLE_NAME;
 
         $sql = "
             INSERT INTO `{$tableName}` (
@@ -122,7 +125,7 @@ class CarTable extends DAOAbstract implements TableInterface
             $where =  'WHERE ' . implode(' AND ', $sqlFilter['sql']);
         }
 
-        $tableName = self::$tableName;
+        $tableName = self::TABLE_NAME;
 
         $sql = "
             SELECT *
@@ -353,8 +356,7 @@ class CarTable extends DAOAbstract implements TableInterface
      */
     private static function validateString(
         string $key,
-        string &$value,
-        bool $range = false
+        string &$value
     ) {
         $value = \trim($value);
 
